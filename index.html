@@ -1,0 +1,604 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="manna-token" content="__MANNA_TOKEN__">
+<title>Manna</title>
+<style>
+:root{
+  --bg:#f5f5f7;--surface:#ffffff;--surface-2:#f0f0f2;--fg:#1d1d1f;--muted:#86868b;--line:rgba(0,0,0,.08);
+  --accent:#0071e3;--accent-press:#0062c4;--ok:#34c759;--warn:#c93400;--err:#ff3b30;--err-bg:rgba(255,59,48,.07);
+  --shadow:0 1px 2px rgba(0,0,0,.04),0 6px 24px rgba(0,0,0,.05);
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#000000;--surface:#1c1c1e;--surface-2:#2c2c2e;--fg:#f5f5f7;--muted:#98989d;--line:rgba(255,255,255,.09);
+  --accent:#0a84ff;--accent-press:#0071e3;--ok:#30d158;--warn:#ff9f0a;--err:#ff453a;--err-bg:rgba(255,69,58,.12);
+  --shadow:0 0 0 1px rgba(255,255,255,.04);
+}}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--fg)}
+body{font:14px/1.5 -apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC",sans-serif;-webkit-font-smoothing:antialiased}
+main{max-width:720px;margin:0 auto;padding:40px 24px 48px}
+main>*{width:100%}
+button,input,select{font:inherit;color:inherit}
+.hidden{display:none!important}
+
+/* 标题 */
+header{display:flex;justify-content:center;align-items:center;gap:12px;margin-bottom:24px}
+.logo{height:34px;width:auto;flex:none;display:block;color:var(--fg)}
+.slogan{text-align:center;color:var(--muted);font-size:15px;letter-spacing:.12em;margin:-12px 0 22px}
+.corner{position:fixed;top:14px;right:16px;z-index:5;display:flex;gap:2px}
+main{display:flex;flex-direction:column;min-height:100vh}
+.hero{width:100%;transition:padding-top .35s ease}
+/* 没有任务时，标题和链接框放在窗口正中 */
+body.idle .hero{padding-top:calc(50vh - 40px - 150px)}
+body.idle .section-head,body.idle #tasks{display:none}
+h1{font:600 30px/1.1 -apple-system,"SF Pro Display","PingFang SC",sans-serif;letter-spacing:-.02em;margin:0}
+.tagline{color:var(--muted);font-size:15px;margin-top:6px}
+.icon-btn{width:34px;height:34px;border-radius:50%;border:0;background:transparent;color:var(--muted);cursor:pointer;display:grid;place-items:center;transition:background .15s,color .15s}
+.icon-btn:hover{background:var(--surface-2);color:var(--fg)}
+.icon-btn svg{width:19px;height:19px}
+.icon-btn{position:relative}
+.icon-btn .badge{position:absolute;top:6px;right:6px;width:7px;height:7px;border-radius:50%;background:#ff3b30}
+
+/* 输入框 */
+.search{display:flex;align-items:center;gap:6px;background:var(--surface);border-radius:14px;padding:6px 6px 6px 16px;box-shadow:var(--shadow);transition:box-shadow .2s}
+.search:focus-within{box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 22%,transparent),var(--shadow)}
+.search svg{width:17px;height:17px;color:var(--muted);flex:none}
+.search input{flex:1;min-width:0;border:0;outline:0;background:transparent;font-size:15px;padding:9px 4px}
+.search input::placeholder{color:var(--muted)}
+.btn{border:0;border-radius:980px;padding:8px 18px;background:var(--accent);color:#fff;font-weight:500;cursor:pointer;white-space:nowrap;transition:background .15s,opacity .15s}
+.btn:hover{background:var(--accent-press)}
+.btn:disabled{opacity:.45;cursor:default}
+.btn.plain{background:transparent;color:var(--accent);padding:6px 10px}
+.btn.plain:hover{background:var(--surface-2)}
+.btn.gray{background:var(--surface-2);color:var(--fg)}
+.btn.gray:hover{background:var(--line)}
+.btn.small{padding:4px 11px;font-size:12.5px}
+.search .btn.gray{padding:8px 16px}
+
+/* 卡片 */
+.card{background:var(--surface);border-radius:16px;box-shadow:var(--shadow);padding:18px;margin-top:20px}
+.section-head{display:flex;align-items:center;justify-content:space-between;margin:34px 4px 10px}
+.section-head h2{font-size:13px;font-weight:600;color:var(--muted);margin:0;letter-spacing:.02em}
+.section-head .actions{display:flex;gap:2px}
+
+/* 解析结果 */
+.info{display:flex;gap:16px;align-items:center}
+.info img{width:168px;aspect-ratio:16/9;object-fit:cover;border-radius:10px;background:var(--surface-2);flex:none}
+.info h3{font-size:16px;font-weight:600;line-height:1.35;margin:0 0 4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-all}
+.meta{color:var(--muted);font-size:12.5px}
+.choose{display:flex;gap:8px;align-items:center;margin-top:14px}
+select{appearance:none;-webkit-appearance:none;border:0;border-radius:8px;background:var(--surface-2) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%2386868b' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 10px center;padding:7px 30px 7px 12px;cursor:pointer;outline:0}
+.loading{display:flex;align-items:center;gap:10px;color:var(--muted)}
+.spinner{width:16px;height:16px;border-radius:50%;border:2px solid var(--line);border-top-color:var(--muted);animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.err{color:var(--err);background:var(--err-bg);border-radius:10px;padding:12px 14px;white-space:pre-wrap;font-size:12.5px;line-height:1.6}
+
+/* 任务 */
+.tasks{background:var(--surface);border-radius:16px;box-shadow:var(--shadow);overflow:hidden}
+.task{padding:12px 18px;border-top:1px solid var(--line);display:flex;gap:12px;align-items:center}
+.task .thumb{width:64px;aspect-ratio:16/9;border-radius:6px;object-fit:cover;background:var(--surface-2);flex:none}
+.task .body{flex:1;min-width:0}
+.task .act{flex:none;display:flex;gap:4px;align-items:center}
+.round{width:30px;height:30px;border-radius:50%;border:0;background:var(--surface-2);color:var(--fg);display:grid;place-items:center;cursor:pointer;transition:background .15s,color .15s,transform .1s}
+.round svg{width:15px;height:15px}
+.round:hover{background:var(--line)}
+.round:active{transform:scale(.92)}
+.round.del:hover{background:var(--err-bg);color:var(--err)}
+.short{color:var(--err);font-size:12.5px;margin-top:2px}
+.more{font-size:12px;color:var(--muted);cursor:pointer;margin-top:4px}
+.more summary{list-style:none}.more summary::-webkit-details-marker{display:none}
+.more .err{margin-top:6px}
+.task:first-child{border-top:0}
+.task-top{display:flex;justify-content:space-between;gap:12px;align-items:baseline}
+.task-title{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.task-state{font-size:12px;color:var(--muted);flex:none}
+.task.done .task-state{color:var(--ok)} .task.error .task-state{color:var(--err)}
+.bar{height:4px;background:var(--surface-2);border-radius:2px;overflow:hidden;margin:9px 0 6px}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:2px;transition:width .4s ease}
+.task.done .bar,.task.error .bar{display:none}
+.task .meta{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.used{font-size:12px;color:var(--muted);margin-top:8px}
+.folder{flex:1;min-width:0;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+details.adv summary{list-style:none;cursor:pointer;color:var(--muted);font-size:12px;margin:18px 6px 6px}
+details.adv summary::-webkit-details-marker{display:none}
+details.adv summary::before{content:"›";display:inline-block;margin-right:6px;transition:transform .15s}
+details.adv[open] summary::before{transform:rotate(90deg)}
+.version{text-align:center;color:var(--muted);font-size:11.5px;margin-top:22px;opacity:.85}
+.empty{padding:28px 18px;text-align:center;color:var(--muted)}
+footer{color:var(--muted);font-size:11.5px;text-align:center;margin-top:28px;opacity:.8}
+
+/* 授权提示 */
+.banner{display:flex;gap:14px;align-items:flex-start}
+.banner .dot{width:30px;height:30px;border-radius:8px;background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent);display:grid;place-items:center;flex:none}
+.banner .dot svg{width:17px;height:17px}
+.banner strong{font-weight:600}
+.banner .meta{margin:4px 0 12px;line-height:1.6}
+.banner .row{display:flex;gap:6px;flex-wrap:wrap}
+
+/* 设置面板 */
+dialog{border:0;border-radius:16px;padding:0;width:min(520px,calc(100vw - 32px));background:var(--bg);color:var(--fg);box-shadow:0 24px 70px rgba(0,0,0,.28)}
+dialog::backdrop{background:rgba(0,0,0,.25);backdrop-filter:blur(2px)}
+.sheet-head{display:flex;align-items:center;justify-content:space-between;padding:16px 18px 6px}
+.sheet-head h2{font-size:17px;font-weight:600;margin:0}
+.sheet-body{padding:6px 18px 20px;max-height:70vh;overflow:auto}
+.group-title{font-size:12px;color:var(--muted);margin:16px 6px 6px}
+.group{background:var(--surface);border-radius:12px;overflow:hidden}
+.field{display:flex;align-items:center;gap:12px;padding:9px 14px;border-top:1px solid var(--line);min-height:44px}
+.field:first-child{border-top:0}
+.field label{width:96px;flex:none}
+.field input{flex:1;min-width:0;border:0;outline:0;background:transparent;text-align:right;color:var(--fg)}
+.field input::placeholder{color:var(--muted)}
+.field select{margin-left:auto}
+.group-note{font-size:12px;color:var(--muted);margin:6px 6px 0;line-height:1.55}
+.link-row{display:flex;justify-content:space-between;align-items:center;padding:11px 14px;cursor:pointer;color:var(--accent);border:0;background:transparent;width:100%;text-align:left}
+.link-row:hover{background:var(--surface-2)}
+.about p{font-size:12.5px;line-height:1.65;margin:0}
+.lic{display:flex;justify-content:space-between;gap:12px;padding:9px 14px;border-top:1px solid var(--line);font-size:12.5px}
+.lic:first-child{border-top:0}
+.lic span:last-child{color:var(--muted);text-align:right}
+.statement{background:var(--surface);border-radius:12px;padding:12px 14px;font-size:13px;line-height:1.6}
+
+/* 下载记录 */
+#history{width:min(620px,calc(100vw - 32px))}
+#history .sheet-body{padding:6px 12px 16px;max-height:72vh}
+.hist{background:var(--surface);border-radius:12px;overflow:hidden}
+.hist .task{padding:10px 14px}
+.hist .thumb{width:76px}
+.hist .thumb.none{display:grid;place-items:center;color:var(--muted)}
+.hist .thumb.none svg{width:18px;height:18px}
+.hist .gone .task-title,.hist .gone .thumb{opacity:.45}
+.hist .gone-tag{color:var(--err)}
+.warn{color:var(--warn);font-size:12.5px;margin-top:2px}
+.task.done.warned .task-state{color:var(--warn)}
+
+/* 栏目页节目列表 */
+.round:disabled{opacity:.35;cursor:default}
+.round:disabled:hover{background:var(--surface-2);color:var(--fg)}
+
+@media (max-width:560px){main{padding:28px 16px}.info{flex-direction:column;align-items:stretch}.info img{width:100%}}
+</style>
+</head>
+<body class="idle">
+<main>
+  <div class="hero">
+  <header>
+    <svg class="logo" viewBox="300 176 430 676" aria-hidden="true"><polygon points="562,196 322,556 488,556 433,832 709,446 552,446 676,196" fill="none" stroke="currentColor" stroke-width="40" stroke-linejoin="round"/></svg>
+    <h1>Manna</h1>
+    <div class="corner">
+    <button class="icon-btn" id="openHistory" title="下载记录" aria-label="下载记录">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 12a8.5 8.5 0 1 0 2.5-6"/><path d="M3 4.5V9h4.5"/><path d="M12 7.5V12l3 2"/></svg>
+    </button>
+    <button class="icon-btn" id="openSettings" title="设置" aria-label="设置">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </button>
+    </div>
+  </header>
+  <div class="slogan">所爱皆至　所见皆存</div>
+
+  <div class="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+    <input id="url" placeholder="粘贴视频链接" autofocus>
+    <button class="btn gray" id="parse">解析</button>
+  </div>
+  </div>
+
+  <div class="card hidden" id="perm">
+    <div class="banner">
+      <div class="dot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div>
+      <div style="flex:1">
+        <strong>允许 Manna 使用 Safari 的登录状态</strong>
+        <div class="meta">抖音、小红书、B站高清等需要登录才能下载。点「去授权」后，在「完全磁盘访问权限」里打开 Manna 的开关，然后退出并重新打开 Manna。登录信息只在本机使用。</div>
+        <div class="row">
+          <button class="btn" id="permGo">去授权</button>
+          <button class="btn gray" id="permRecheck">我已授权</button>
+          <button class="btn plain" id="permSkip">我用 Chrome</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card hidden" id="result"></div>
+
+  <div class="section-head">
+    <h2>下载</h2>
+    <div class="actions">
+      <button class="btn plain" id="openFolder">打开文件夹</button>
+      <button class="btn plain" id="clear">清除已完成</button>
+    </div>
+  </div>
+  <div class="tasks" id="tasks"><div class="empty">还没有下载任务</div></div>
+</main>
+
+<dialog id="settings">
+  <div class="sheet-head">
+    <h2>设置</h2>
+    <button class="btn plain" id="closeSettings">完成</button>
+  </div>
+  <div class="sheet-body">
+    <div class="group-title">登录</div>
+    <div class="group">
+      <div class="field">
+        <label for="cookies_browser">登录浏览器</label>
+        <select id="cookies_browser">
+          <option value="auto">自动</option>
+          <option value="safari">Safari</option><option value="chrome">Chrome</option>
+          <option value="edge">Edge</option><option value="firefox">Firefox</option>
+        </select>
+      </div>
+    </div>
+    <div class="group-note">需要登录的网站（抖音、小红书、B站高清等），Manna 会自动使用你在浏览器里的登录状态。用 Chrome 时会弹出「钥匙串」，输入电脑密码后点「始终允许」。</div>
+
+    <div class="group-title">保存位置</div>
+    <div class="group">
+      <div class="field">
+        <span class="folder" id="folder">~/Downloads/Manna</span>
+        <button class="btn gray small" id="chooseFolder">更改…</button>
+      </div>
+    </div>
+
+    <div class="group-title">网络</div>
+    <div class="group">
+      <div class="field">
+        <label for="proxy">代理</label>
+        <input id="proxy" placeholder="例如 http://127.0.0.1:7890">
+      </div>
+    </div>
+    <div class="group-note">YouTube、X、Instagram、TikTok 在国内需要代理。</div>
+
+    <div class="group-title">抖音</div>
+    <div class="group">
+      <div class="field">
+        <span class="folder" id="dyCookie">Cookie：未导入</span>
+        <button class="btn plain small hidden" id="dyClear">清除</button>
+        <button class="btn gray small" id="dyBrowser">从浏览器读取</button>
+        <button class="btn gray small" id="dyImport">导入 Cookie…</button>
+      </div>
+    </div>
+    <div class="group-note">先在浏览器里登录 douyin.com，再点「从浏览器读取」（用上面「登录浏览器」选的那个，「自动」时用 Chrome；Chrome 会弹出钥匙串，输入电脑密码后点「始终允许」）。也可以导出 cookies.txt 再导入。只保存抖音的部分，只在本机使用。</div>
+
+    <details class="adv">
+      <summary>高级</summary>
+      <div class="group">
+        <div class="field">
+          <label for="cookies_file">cookies.txt</label>
+          <input id="cookies_file" placeholder="可选，填文件路径">
+        </div>
+      </div>
+    </details>
+
+    <div class="group-title">关于</div>
+    <div class="group">
+      <button class="link-row" id="openAbout">关于 / 开源许可<span>›</span></button>
+    </div>
+
+    <div class="version" id="version"></div>
+  </div>
+</dialog>
+
+<dialog id="history">
+  <div class="sheet-head">
+    <h2>下载记录</h2>
+    <button class="btn plain" id="closeHistory">完成</button>
+  </div>
+  <div class="sheet-body"><div class="hist" id="histList"></div></div>
+</dialog>
+
+<dialog id="about">
+  <div class="sheet-head">
+    <h2>关于 / 开源许可</h2>
+    <button class="btn plain" id="closeAbout">完成</button>
+  </div>
+  <div class="sheet-body about">
+    <div class="group-title">使用声明</div>
+    <div class="statement">仅供个人下载你有权保存的内容，请遵守各平台条款与版权法规。</div>
+
+    <div class="group-title">Manna 使用了以下开源软件</div>
+    <div class="group">
+      <div class="lic"><span>yt-dlp · yt-dlp-ejs</span><span>Unlicense（yt-dlp-ejs 另含 MIT / ISC 部分）</span></div>
+      <div class="lic"><span>FFmpeg 7.1（经 imageio-ffmpeg 提供）</span><span>GPL v2 或更高版本</span></div>
+      <div class="lic"><span>imageio-ffmpeg</span><span>BSD-2-Clause</span></div>
+      <div class="lic"><span>Deno（JavaScript 运行环境）</span><span>MIT</span></div>
+      <div class="lic"><span>pywebview</span><span>BSD-3-Clause</span></div>
+      <div class="lic"><span>PyInstaller</span><span>GPL v2 或更高版本 + 打包例外条款</span></div>
+      <div class="lic"><span>Python</span><span>PSF License</span></div>
+      <div class="lic"><span>PyObjC · bottle · Brotli · urllib3 · charset-normalizer</span><span>MIT</span></div>
+      <div class="lic"><span>requests</span><span>Apache-2.0</span></div>
+      <div class="lic"><span>certifi</span><span>MPL-2.0</span></div>
+      <div class="lic"><span>mutagen</span><span>GPL v2 或更高版本</span></div>
+      <div class="lic"><span>pycryptodomex · websockets · idna</span><span>BSD</span></div>
+    </div>
+    <div class="group-note">
+      FFmpeg 以 GNU 通用公共许可证（GPL）第 2 版或更高版本发布，Manna 未修改其代码，原样调用其可执行文件。
+      FFmpeg 源代码：https://ffmpeg.org/releases/ffmpeg-7.1.tar.xz ；
+      该二进制的构建方式：https://github.com/imageio/imageio-ffmpeg 。
+      mutagen 同为 GPL v2+，源代码：https://github.com/quodlibet/mutagen 。
+      PyInstaller 源代码：https://github.com/pyinstaller/pyinstaller ；
+      Deno：https://github.com/denoland/deno ；yt-dlp：https://github.com/yt-dlp/yt-dlp ；pywebview：https://github.com/r0x0r/pywebview 。
+      各组件的完整许可证文本随应用一同提供。
+    </div>
+    <div class="group" style="margin-top:12px">
+      <button class="link-row" id="openLicenses">查看完整许可证文本<span>›</span></button>
+    </div>
+  </div>
+</dialog>
+
+<script>
+const $ = id => document.getElementById(id);
+const SETTINGS = ["cookies_browser", "cookies_file", "proxy"];
+SETTINGS.forEach(k => {
+  try {
+    const v = localStorage.getItem("dl_" + k);
+    const el = $(k);
+    if (v && (el.tagName !== "SELECT" || [...el.options].some(o => o.value === v))) el.value = v;
+  } catch (e) {}
+  $(k).addEventListener("change", () => { try { localStorage.setItem("dl_" + k, $(k).value); } catch (e) {} });
+});
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const settings = () => Object.fromEntries(SETTINGS.map(k => [k, $(k).value]));
+function extractUrl(text) {
+  const m = text.match(/https?:\/\/[^\s"'<>，。！）]+/);
+  return m ? m[0] : text.trim();
+}
+const TOKEN = document.querySelector('meta[name="manna-token"]').content;
+async function api(path, body) {
+  const headers = {"X-Manna-Token": TOKEN};
+  const r = await fetch(path, body === undefined ? {headers} : {method: "POST", headers: {...headers, "Content-Type": "application/json"}, body: JSON.stringify(body)});
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error || "请求失败");
+  return j;
+}
+const fmtDur = s => s ? `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}` : "";
+
+$("openSettings").onclick = () => $("settings").showModal();
+$("openAbout").onclick = () => { $("settings").close(); $("about").showModal(); };
+$("closeAbout").onclick = () => $("about").close();
+$("about").addEventListener("click", e => { if (e.target === $("about")) $("about").close(); });
+$("openLicenses").onclick = () => api("/api/open-licenses", {}).catch(() => {});
+$("closeSettings").onclick = () => $("settings").close();
+$("closeHistory").onclick = () => $("history").close();
+$("history").addEventListener("click", e => { if (e.target === $("history")) $("history").close(); });
+$("openHistory").onclick = () => { loadHistory(); $("history").showModal(); };
+$("settings").addEventListener("click", e => { if (e.target === $("settings")) $("settings").close(); });
+
+function showPerm(state) {
+  let skipped = false;
+  try { skipped = localStorage.getItem("dl_perm_skip") === "1"; } catch (e) {}
+  const want = state === "denied" && (!skipped || $("cookies_browser").value === "safari");
+  $("perm").classList.toggle("hidden", !want);
+}
+async function checkPerm() {
+  try { const s = await api("/api/status"); showPerm(s.safari); return s.safari; } catch (e) {}
+}
+$("permGo").onclick = () => api("/api/open-fda", {});
+$("permRecheck").onclick = async () => {
+  const st = await checkPerm();
+  if (st === "ok") alert("授权成功，现在可以使用 Safari 的登录状态了。");
+  else alert("还没生效：请确认开关已打开，然后完全退出 Manna（⌘Q）再重新打开。");
+};
+$("permSkip").onclick = () => {
+  try { localStorage.setItem("dl_perm_skip", "1"); } catch (e) {}
+  if ($("cookies_browser").value === "safari") $("cookies_browser").value = "chrome";
+  try { localStorage.setItem("dl_cookies_browser", $("cookies_browser").value); } catch (e) {}
+  $("perm").classList.add("hidden");
+};
+$("cookies_browser").addEventListener("change", checkPerm);
+
+const home = p => {
+  const parts = String(p || "").replace(/^\/Users\/[^/]+/, "~").split("/").filter(Boolean);
+  const lead = parts[0] === "~" ? "" : "/";
+  return lead + (parts.length > 3 ? parts[0] + "/…/" + parts.slice(-2).join("/") : parts.join("/"));
+};
+api("/api/status").then(s => {
+  showPerm(s.safari);
+  $("folder").textContent = home(s.download_dir);
+  $("folder").title = s.download_dir;
+  $("version").textContent = `yt-dlp ${s.version} · ffmpeg ${s.ffmpeg ? "正常" : "未找到"} · 自动保持最新`;
+}).catch(() => {});
+function showDyCookie(c) {
+  if (!c) return;
+  const d = c.imported ? new Date(c.date * 1000) : null;
+  $("dyCookie").textContent = c.imported ? `Cookie：已导入（${d.getMonth() + 1} 月 ${d.getDate()} 日）` : "Cookie：未导入";
+  $("dyClear").classList.toggle("hidden", !c.imported);
+}
+api("/api/status").then(s => showDyCookie(s.douyin_cookies)).catch(() => {});
+$("dyImport").onclick = async () => {
+  try {
+    const r = await api("/api/douyin/import", {});
+    showDyCookie(r);
+    if (!r.cancelled && !r.login) alert("已导入，但里面没有抖音的登录信息。部分作品需要登录：请先在浏览器登录抖音，再重新导出。");
+  } catch (e) { alert(e.message); }
+};
+$("dyClear").onclick = async () => {
+  if (!confirm("清除导入的抖音 Cookie？")) return;
+  try { showDyCookie(await api("/api/douyin/clear", {})); } catch (e) { alert(e.message); }
+};
+$("dyBrowser").onclick = async () => {
+  const b = $("dyBrowser"); b.disabled = true; b.textContent = "读取中…";
+  try {
+    const r = await api("/api/douyin/import-browser", {browser: $("cookies_browser").value});
+    showDyCookie(r);
+    alert(r.login ? `已从 ${r.browser} 读取抖音登录信息（${r.count} 条），以后下载抖音会自动使用。`
+                  : `读到了 ${r.count} 条抖音 Cookie，但其中没有登录信息：请先在 ${r.browser} 里登录 douyin.com，再点一次。`);
+  } catch (e) { alert(e.message); }
+  finally { b.disabled = false; b.textContent = "从浏览器读取"; }
+};
+$("chooseFolder").onclick = async () => {
+  try { const r = await api("/api/choose-folder", {}); $("folder").textContent = home(r.download_dir); $("folder").title = r.download_dir; } catch (e) {}
+};
+
+let current = null;
+async function parse() {
+  const url = extractUrl($("url").value);
+  if (!url) return;
+  $("url").value = url;
+  const box = $("result");
+  box.classList.remove("hidden");
+  box.innerHTML = `<div class="loading"><div class="spinner"></div>正在解析…</div>`;
+  $("parse").disabled = true;
+  try {
+    const info = await api("/api/info", {url, ...settings()});
+    current = {url: info.webpage_url || url, title: info.title, thumbnail: info.thumbnail, duration: info.duration,
+               engine: info.engine, portrait: !!info.portrait, cookies_used: info.cookies_used || ""};
+    let lastQ = "best";
+    try { lastQ = localStorage.getItem("dl_quality") || "best"; } catch (e) {}
+    const opts = [`<option value="best">最高画质</option>`]
+      .concat(info.qualities.map(q => `<option value="${q.value}">${esc(q.label)}</option>`))
+      .concat([`<option value="audio">仅音频（MP3）</option>`]).join("");
+    box.innerHTML = `<div class="info">
+      ${info.thumbnail ? `<img src="${esc(info.thumbnail)}" referrerpolicy="no-referrer" onerror="this.style.display='none'">` : ""}
+      <div style="flex:1;min-width:0">
+        <h3>${esc(info.title)}</h3>
+        <div class="meta">${esc(info.site)}${info.uploader ? " · " + esc(info.uploader) : ""}${info.duration ? " · " + fmtDur(info.duration) : ""}</div>
+        <div class="choose">
+          <select id="quality"${info.images ? ' class="hidden"' : ""}>${opts}</select>
+          <button class="btn" id="download">下载</button>
+        </div>
+        ${info.images > 0 ? `<div class="meta" style="margin-top:8px">图集，共 ${info.images} 张图片，将全部下载。</div>`
+          : info.images ? `<div class="meta" style="margin-top:8px">图集，将下载全部图片。</div>`
+          : info.qualities.length ? "" : `<div class="meta" style="margin-top:8px">未提供分辨率列表，将下载可用的最佳版本。</div>`}
+      </div></div>`;
+    if (!info.images && [...$("quality").options].some(o => o.value === lastQ)) $("quality").value = lastQ;
+    $("download").onclick = download;
+  } catch (e) {
+    box.innerHTML = `<div class="err">${esc(e.message)}</div>`;
+  } finally { $("parse").disabled = false; }
+}
+async function download() {
+  if (!current) return;
+  const q = $("quality").value;
+  try { localStorage.setItem("dl_quality", q); } catch (e) {}
+  const s = settings();
+  if (s.cookies_browser === "auto") s.cookies_browser = current.cookies_used;
+  await api("/api/download", {...current, ...s, quality: q});
+  $("result").classList.add("hidden");
+  $("url").value = "";
+  refresh();
+}
+const BROWSER = {safari: "Safari", chrome: "Chrome", edge: "Edge", firefox: "Firefox"};
+const STATUS = {queued: "等待中", downloading: "下载中", processing: "处理中", done: "已完成", error: "失败"};
+const QUALITY = q => q === "best" ? "最高画质" : q === "audio" ? "仅音频" : String(q).startsWith("f:") ? "指定画质" : q + "p";
+function shortError(msg) {
+  const hint = String(msg).split("\n").find(l => l.startsWith("• "));
+  return hint ? hint.slice(2).split("：")[0] + "。" : "下载没有成功。";
+}
+const ICON = {
+  reveal: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg>`,
+  retry: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg>`,
+  trash: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9.5 7V4.8c0-.4.4-.8.8-.8h3.4c.4 0 .8.4.8.8V7"/><path d="M6.5 7l.9 12.2c.1 1 .9 1.8 1.9 1.8h5.4c1 0 1.8-.8 1.9-1.8L17.5 7"/><path d="M10 11v6M14 11v6"/></svg>`,
+};
+function updateIdle(hasTasks) {
+  const idle = !hasTasks && $("result").classList.contains("hidden") && $("perm").classList.contains("hidden");
+  document.body.classList.toggle("idle", idle);
+}
+let hasTasks = false;
+new MutationObserver(() => updateIdle(hasTasks)).observe($("result"), {attributes: true, attributeFilter: ["class"]});
+new MutationObserver(() => updateIdle(hasTasks)).observe($("perm"), {attributes: true, attributeFilter: ["class"]});
+let lastHtml = "";
+async function refresh() {
+  let list;
+  try { list = await api("/api/tasks"); } catch (e) { return; }
+  const html = !list.length ? `<div class="empty">还没有下载任务</div>` :
+    list.slice().reverse().map(t => {
+      const state = t.warning ? (t.warning.startsWith("可能花屏") ? "可能花屏/不完整" : "带水印")
+        : t.status === "downloading" && t.percent != null ? `${Math.round(t.percent)}%`
+        : t.status === "processing" && t.note ? `${t.note}${t.percent != null ? " " + Math.round(t.percent) + "%" : "…"}`
+        : (STATUS[t.status] || t.status);
+      const detail = t.status === "downloading"
+        ? [QUALITY(t.quality), t.size, t.speed].filter(Boolean).join(" · ")
+        : t.status === "done" && t.summary ? t.summary
+        : t.status === "done" && t.file ? (t.files && t.files.length > 1 ? `${t.files.length} 个文件` : t.file.split("/").pop()) : QUALITY(t.quality);
+      const act = (t.status === "done" && t.file ? `<button class="round" data-reveal="${esc(t.file)}" title="在访达中显示" aria-label="在访达中显示">${ICON.reveal}</button>` : "")
+        + (t.status === "error" || t.warning ? `<button class="round" data-retry="${esc(t.id)}" title="重试" aria-label="重试">${ICON.retry}</button>` : "")
+        + (t.status === "done" || t.status === "error" ? `<button class="round del" data-del="${esc(t.id)}" data-has-file="${t.file ? 1 : ""}" title="删除" aria-label="删除">${ICON.trash}</button>` : "");
+      return `<div class="task ${t.status}${t.warning ? " warned" : ""}">
+        ${t.thumbnail ? `<img class="thumb" src="${esc(t.thumbnail)}" referrerpolicy="no-referrer" onerror="this.style.visibility='hidden'">` : ""}
+        <div class="body">
+          <div class="task-top"><div class="task-title">${esc(t.title)}</div><div class="task-state">${esc(state)}</div></div>
+          <div class="bar"><i style="width:${t.percent ?? 4}%"></i></div>
+          ${t.status === "error" ? `<div class="short">${esc(shortError(t.error))}</div>
+            <details class="more" ${openDetails.has(t.id) ? "open" : ""} data-id="${esc(t.id)}"><summary>详细信息</summary><div class="err">${esc(t.error)}</div></details>`
+            : `<div class="meta">${esc(detail)}</div>${t.warning ? `<div class="warn">${esc(t.warning)}</div>` : ""}`}
+        </div>
+        <div class="act">${act}</div>
+      </div>`;
+    }).join("");
+  if (html !== lastHtml) { $("tasks").innerHTML = html; lastHtml = html; }
+  hasTasks = list.length > 0;
+  updateIdle(hasTasks);
+}
+const openDetails = new Set();
+$("tasks").addEventListener("toggle", e => {
+  const id = e.target.dataset && e.target.dataset.id;
+  if (id) e.target.open ? openDetails.add(id) : openDetails.delete(id);
+}, true);
+$("tasks").addEventListener("click", async e => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  try {
+    if (b.dataset.reveal) await api("/api/reveal", {path: b.dataset.reveal});
+    if (b.dataset.retry) { await api("/api/retry", {id: b.dataset.retry}); refresh(); }
+    if (b.dataset.del) {
+      if (b.dataset.hasFile && !confirm("删除这条下载？\n下载好的文件会移到废纸篓，需要时可以从废纸篓恢复。")) return;
+      await api("/api/delete", {id: b.dataset.del}); refresh();
+    }
+  } catch (err) { alert(err.message); }
+});
+
+const fmtDate = t => {
+  const d = new Date(t * 1000), p = n => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+};
+const FILM = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9.5v5l4-2.5z"/></svg>`;
+async function loadHistory() {
+  let list;
+  try { list = await api("/api/history"); } catch (e) { $("histList").innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
+  $("histList").innerHTML = !list.length ? `<div class="empty">还没有下载记录</div>` : list.map(h => {
+    const meta = [h.resolution, h.size, h.date ? fmtDate(h.date) : ""].filter(Boolean).join(" · ");
+    const name = h.count > 1 ? `${h.count} 个文件` : String(h.file).split("/").pop();
+    return `<div class="task ${h.exists ? "" : "gone"}">
+      ${h.thumb ? `<img class="thumb" src="${esc(h.thumb)}" onerror="this.style.visibility='hidden'">` : `<div class="thumb none">${FILM}</div>`}
+      <div class="body">
+        <div class="task-top"><div class="task-title" title="${esc(name)}">${esc(h.title)}</div></div>
+        <div class="meta">${esc(meta)}${h.exists ? "" : ` · <span class="gone-tag">文件已不存在</span>`}</div>
+      </div>
+      <div class="act">
+        <button class="round" data-reveal="${esc(h.file)}" ${h.exists ? "" : "disabled"} title="${h.exists ? "在访达中显示" : "文件已不存在"}" aria-label="在访达中显示">${ICON.reveal}</button>
+        <button class="round del" data-hdel="${esc(h.id)}" data-exists="${h.exists ? 1 : ""}" title="删除" aria-label="删除">${ICON.trash}</button>
+      </div>
+    </div>`;
+  }).join("");
+}
+$("histList").addEventListener("click", async e => {
+  const b = e.target.closest("button");
+  if (!b || b.disabled) return;
+  try {
+    if (b.dataset.reveal) await api("/api/reveal", {path: b.dataset.reveal});
+    if (b.dataset.hdel) {
+      const msg = b.dataset.exists ? "删除这条下载记录？\n文件会移到废纸篓，需要时可以从废纸篓恢复。" : "文件已经不在了，删除这条记录？";
+      if (!confirm(msg)) return;
+      await api("/api/history/delete", {id: b.dataset.hdel});
+      loadHistory(); refresh();
+    }
+  } catch (err) { alert(err.message); }
+});
+
+setInterval(refresh, 1000);
+$("parse").onclick = parse;
+// 解析报错后，点窗口空白处：清掉报错和链接，回到初始状态
+document.addEventListener("click", e => {
+  if (!$("result").querySelector(".err")) return;
+  if (e.target.closest(".search, #result, #tasks, #perm, dialog, button, a, input, select, .section-head")) return;
+  $("result").classList.add("hidden");
+  $("result").innerHTML = "";
+  $("url").value = "";
+  current = null;
+});
+$("url").addEventListener("keydown", e => { if (e.key === "Enter") parse(); });
+$("openFolder").onclick = () => api("/api/open-folder", {});
+$("clear").onclick = () => api("/api/clear", {}).then(refresh);
+</script>
+</body>
+</html>
