@@ -12,6 +12,13 @@
   macOS · Apple 芯片 / Intel · 基于 <a href="https://github.com/yt-dlp/yt-dlp">yt-dlp</a> · <a href="LICENSE">MIT</a>
 </p>
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/main-dark.png">
+    <img src="docs/screenshots/main-light.png" width="760" alt="Manna 主界面：解析链接、选择清晰度、下载与转码进度">
+  </picture>
+</p>
+
 ---
 
 ## 为什么做 Manna
@@ -37,6 +44,13 @@ Manna 只想把这一件事做干净：一个窗口、一个输入框，下载�
 
 **下载记录**
 封面、标题、文件位置都留着，随时找回。
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/history-dark.png">
+    <img src="docs/screenshots/history-light.png" width="640" alt="Manna 下载记录">
+  </picture>
+</p>
 
 **登录状态，只在本机**
 自动使用你在浏览器里的登录状态，也可以导入 cookies.txt。Cookie 不离开这台电脑。
@@ -109,6 +123,9 @@ Manna 只使用网站公开提供的文件，以及你本人的登录状态。
 
 ## 致谢与许可
 
+截图中的影片均为 Blender Foundation 的开放电影（Big Buck Bunny、Sintel、Tears of Steel、Spring、Cosmos Laundromat），以 CC BY 许可发布，© Blender Foundation | blender.org。
+
+
 Manna 站在这些开源项目的肩膀上。打包时它们会被放进 Manna.app（不在本仓库中，由 `build_mac.command` 下载）：
 
 | 软件 | 许可 | 源码 |
@@ -141,5 +158,7 @@ Paste a link, pick a quality, and get an H.264 + AAC mp4 that opens in any edito
 
 Build with `./build_mac.command` (Python 3.10+ required at build time only).
 Manna uses only publicly served files and your own sign-in. It does not remove watermarks or bypass DRM, paywalls or platform access controls. Download only content you have the right to keep.
+
+Screenshots show Blender Foundation open movies (CC BY, © Blender Foundation | blender.org).
 
 Released under the [MIT License](LICENSE).
