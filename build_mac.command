@@ -13,11 +13,12 @@ cd "$(dirname "$0")"
 ROOT="$(pwd)"
 
 ARCHES="${ARCHES:-arm64 x86_64}"
+VERSION="$(sed -n 's/^VERSION = "\(.*\)"/\1/p' config.py)"
 
-PY_TAG="20261003"
+PY_TAG="20261013"
 PY_VER="3.12.15"
-PY_SHA_arm64="316a463172740e71d8dca1f2730784e325f3f720941137b5d674d5801a632213"
-PY_SHA_x86_64="a8fd7a91852f19b6d959793ef41fad048631ccb2a334a9ecdf573255298f7978"
+PY_SHA_arm64="ba32036ad8f4c434d97a1ee7feef8b7edc0fac16777639b97e39c74a108e4440"
+PY_SHA_x86_64="9686ddd8639b855905447ea4a16eb54a804a9ef12afbe7c9ecb1412d9c1fbc98"
 DENO_VER="2.9.7"
 DENO_SHA_arm64="5cd46d6268f6f78f5d88bdc7159d20bd44cdaa4b3303474839f87ec6fe7ae25c"
 DENO_SHA_x86_64="95daaff11c116a52ad54785e7914c8e9c9cdcaba793c5ed929c74ca2d8e6259a"
@@ -118,10 +119,13 @@ for ARCH in $ARCHES; do
     --hidden-import tools \
     --hidden-import shortlinks \
     --hidden-import ytdlp_runner \
+    --hidden-import winsupport \
     --collect-submodules engines \
     --paths "$ROOT" \
     "$ROOT/manna_app.py"
   APP="dist/$ARCH/Manna.app"
+  plutil -replace CFBundleShortVersionString -string "$VERSION" "$APP/Contents/Info.plist"
+  plutil -replace CFBundleVersion -string "$VERSION" "$APP/Contents/Info.plist"
 
   # 5. 用钥匙串里的固定证书「Manna Local Signing」签名，重新打包后「完全磁盘访问权限」不会失效；
   #    没有这个证书就用临时签名（避免「已损坏」提示，但每次重新打包都要重新授权）
@@ -134,7 +138,7 @@ for ARCH in $ARCHES; do
   codesign --verify --deep --strict "$APP"
 
   # 6. 拖拽安装的 .dmg：左边 Manna，右边「应用程序」
-  DMG="dist/Manna-$LABEL.dmg"
+  DMG="dist/Manna-$VERSION-$LABEL.dmg"
   STAGE="$B/dmg"
   rm -rf "$STAGE"; mkdir -p "$STAGE"
   ditto "$APP" "$STAGE/Manna.app"

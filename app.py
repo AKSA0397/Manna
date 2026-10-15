@@ -1,6 +1,6 @@
 """Manna：基于 yt-dlp 的视频下载器（本地服务 + 网页界面）。
 
-Mac 应用由 manna_app.py 启动（自带窗口）；也可以直接运行 python app.py 用浏览器打开。
+Mac / Windows 应用由 manna_app.py 启动（自带窗口）；也可以直接运行 python app.py 用浏览器打开。
 """
 import json
 import os
@@ -14,7 +14,9 @@ import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from config import BASE_DIR, FROZEN, SUPPORT_DIR, YTDLP_ZIP, get_logger, load_config, save_config
+from config import BASE_DIR, FROZEN, SUPPORT_DIR, VERSION, YTDLP_ZIP, get_logger, load_config, save_config
+import winsupport
+from winsupport import IS_WIN
 
 # 应用内「更新 yt-dlp」下载的新版优先于打包进来的版本（解析、下载在子进程里跑，见 tools.py；
 # 这里只影响本进程里读浏览器登录信息、识别剪贴板链接用到的 yt-dlp 代码）
@@ -29,6 +31,7 @@ from engines import douyin
 from tools import FFMPEG
 
 log = get_logger()
+winsupport.hide_console_windows()
 HOST, PORT = "127.0.0.1", int(os.environ.get("PORT", 8765))
 # 每次启动随机生成，写进 Manna 自己的页面；别的网页拿不到，就没法调用本地接口
 API_TOKEN = secrets.token_urlsafe(24)
@@ -82,9 +85,12 @@ def needs_login(err):
 
 
 def auto_browsers():
-    """「自动」模式下可以尝试的浏览器：Safari（已授权时）+ 本机装了的 Chrome / Edge / Firefox。"""
+    """「自动」模式下可以尝试的浏览器：Safari（已授权时）+ 本机装了的 Chrome / Edge / Firefox。
+    Windows 上按 Firefox → Edge → Chrome（见 winsupport.installed_browsers）。"""
     out = []
-    if sys.platform == "darwin":
+    if IS_WIN:
+        out = winsupport.installed_browsers()
+    elif sys.platform == "darwin":
         if safari_access() == "ok":
             out.append("safari")
         for b, app_name in (("chrome", "Google Chrome"), ("edge", "Microsoft Edge"), ("firefox", "Firefox")):
@@ -250,6 +256,12 @@ def short_side(f):
 
 
 def notify(title, text):
+    if IS_WIN:
+        try:
+            winsupport.notify(title, text)
+        except Exception:
+            pass
+        return
     if sys.platform != "darwin":
         return
     import subprocess
@@ -474,7 +486,7 @@ AAC_KBPS = 192  # 声音不是 AAC 时重新编码用的码率
 
 
 def h264_kbps(short, src_kbps=None):
-    """按短边分辨率和原画面码率（kbps，未知时为 None）算 VideoToolbox 的目标码率（kbps）。"""
+    """按短边分辨率和原画面码率（kbps，未知时为 None）算硬件编码的目标码率（kbps）。"""
     short = short or 1080
     lo, hi = next((lo, hi) for limit, lo, hi in H264_LIMITS if short >= limit)
     if not src_kbps:
@@ -527,9 +539,15 @@ def probe_video_kbps(path):
     return None
 
 
+# Windows 上依次尝试的硬件编码器：NVIDIA（NVENC）、Intel（Quick Sync）、AMD（AMF）
+HW_ENCODERS_WIN = ("h264_nvenc", "h264_qsv", "h264_amf")
+_hw_failed = set()
+
+
 def ensure_h264(task_id, path, duration):
     """成片统一为 H.264 + AAC 的 mp4（剪映、QuickTime 都能直接打开）。
-    已经是 H.264 + AAC 的 mp4 原样返回；否则用 FFmpeg 转换，优先 VideoToolbox 硬件编码。"""
+    已经是 H.264 + AAC 的 mp4 原样返回；否则用 FFmpeg 转换，优先硬件编码
+    （Mac：VideoToolbox；Windows：NVIDIA / Intel / AMD 显卡），都不行时用 libx264 软件编码。"""
     import subprocess
     path = Path(path)
     if not FFMPEG or not path.exists():
@@ -548,10 +566,12 @@ def ensure_h264(task_id, path, duration):
         size, src = video_size(path), probe_video_kbps(path)
         kbps = h264_kbps(min(size) if size else None, src)
         log.info("转 H.264：%s %s，原画面 %s kbps → 目标 %s kbps", vcodec, size, src, kbps)
-        # VideoToolbox 不可用（或失败）时退回 libx264 软件编码
-        encoders = [["-c:v", "h264_videotoolbox", "-b:v", f"{kbps}k", "-maxrate", f"{kbps * 3 // 2}k",
-                     "-bufsize", f"{kbps * 2}k", "-profile:v", "high", "-pix_fmt", "yuv420p"],
-                    ["-c:v", "libx264", "-crf", "18", "-preset", "medium", "-pix_fmt", "yuv420p"]]
+        rate = ["-b:v", f"{kbps}k", "-maxrate", f"{kbps * 3 // 2}k", "-bufsize", f"{kbps * 2}k",
+                "-profile:v", "high", "-pix_fmt", "yuv420p"]
+        # 硬件编码按顺序试，不可用（没有这块显卡 / 驱动太旧）会立刻失败，换下一个；最后退回 libx264 软件编码
+        hw = HW_ENCODERS_WIN if IS_WIN else (("h264_videotoolbox",) if sys.platform == "darwin" else ())
+        encoders = [["-c:v", e, *rate] for e in hw if e not in _hw_failed]
+        encoders.append(["-c:v", "libx264", "-crf", "18", "-preset", "medium", "-pix_fmt", "yuv420p"])
     with tasks_lock:
         tasks[task_id].update(status="processing", percent=0 if not v_ok else None,
                               note="转为 H.264" if not v_ok else "转换封装")
@@ -560,7 +580,8 @@ def ensure_h264(task_id, path, duration):
         cmd = [FFMPEG, "-hide_banner", "-y", "-i", str(path), "-map", "0:v:0", "-map", "0:a:0?",
                *enc, *audio, "-tag:v", "avc1", "-movflags", "+faststart",
                "-progress", "pipe:1", "-nostats", str(out)]
-        p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, errors="replace")
+        p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, errors="replace",
+                             stdin=subprocess.DEVNULL)
         stderr_lines = []
         threading.Thread(target=lambda: stderr_lines.extend(p.stderr), daemon=True).start()
         for line in p.stdout:
@@ -581,6 +602,9 @@ def ensure_h264(task_id, path, duration):
             return str(final)
         err = "".join(stderr_lines[-5:])
         out.unlink(missing_ok=True)
+        if enc[1] != "libx264" and enc[1] != "copy":
+            _hw_failed.add(enc[1])      # 本次运行不再试这个硬件编码器
+            log.info("硬件编码 %s 不可用，换下一个：%s", enc[1], err.strip()[-300:])
     raise RuntimeError(f"转为 H.264 失败（原始文件保留在 {path}）：\n{err}")
 
 
@@ -598,6 +622,10 @@ def friendly_error(msg):
         hints.append(douyin.COOKIE_EXPIRED)
     elif any(k in low for k in ("login", "cookie", "sign in", "fresh cookies", "not a bot", "rate-limit")):
         hints.append("这个网站需要登录：先在浏览器里登录它，再在设置里把「登录浏览器」选成那个浏览器后重试。")
+    if IS_WIN and any(k in low for k in ("dpapi", "could not copy", "app-bound", "v20", "cookie database")):
+        hints = ["读不到 Chrome / Edge 的登录信息：这两个浏览器在 Windows 上用了新的加密方式，"
+                 "别的程序通常读不出来，而且浏览器开着时文件会被锁住。请在设置里把「登录浏览器」改成 Firefox"
+                 "（先在 Firefox 里登录该网站），或用浏览器扩展导出 cookies.txt 后在设置里选择它。"]
     if "operation not permitted" in low and "safari" in low:
         hints = ["读取 Safari 的登录信息需要「完全磁盘访问权限」：系统设置 → 隐私与安全性 → 完全磁盘访问权限，点 + 添加「应用程序」里的 Manna 并打开开关，然后退出重开 Manna。也可以改用 Chrome。"]
     if "ffmpeg" in low:
@@ -687,11 +715,14 @@ def is_supported(url):
 
 
 def clipboard_url():
-    if sys.platform != "darwin":
-        return ""
-    import subprocess
     try:
-        text = subprocess.run(["pbpaste"], capture_output=True, text=True, timeout=3).stdout
+        if IS_WIN:
+            text = winsupport.clipboard_text()
+        elif sys.platform == "darwin":
+            import subprocess
+            text = subprocess.run(["pbpaste"], capture_output=True, text=True, timeout=3).stdout
+        else:
+            return ""
     except Exception:
         return ""
     m = re.search(r"https?://[^\s\"'<>，。！）]+", text or "")
@@ -699,46 +730,65 @@ def clipboard_url():
     return url if url and is_supported(url) else ""
 
 
+def pick_path(prompt, folder, file_types=()):
+    """系统的「选择文件夹 / 文件」对话框，返回选中的路径；取消返回空字符串。
+    Mac 用 AppleScript；Windows 用 Manna 窗口（pywebview）自带的对话框。"""
+    if sys.platform == "darwin":
+        import subprocess
+        what = "folder" if folder else "file"
+        r = subprocess.run(["osascript", "-e", f'POSIX path of (choose {what} with prompt "{prompt}")'],
+                           capture_output=True, text=True)
+        return r.stdout.strip() if r.returncode == 0 else ""
+    import webview
+    if not webview.windows:
+        raise RuntimeError("请在 Manna 窗口里操作（浏览器里打开时不能弹出选择框）。")
+    kind = getattr(webview, "FileDialog", None)
+    kind = (kind.FOLDER if folder else kind.OPEN) if kind else (webview.FOLDER_DIALOG if folder else webview.OPEN_DIALOG)
+    res = webview.windows[0].create_file_dialog(kind, file_types=tuple(file_types))
+    if isinstance(res, (list, tuple)):
+        res = res[0] if res else ""
+    return str(res or "")
+
+
 def choose_folder():
     global DOWNLOAD_DIR
-    import subprocess
-    r = subprocess.run(["osascript", "-e", 'POSIX path of (choose folder with prompt "选择 Manna 的保存位置")'],
-                       capture_output=True, text=True)
-    path = r.stdout.strip()
-    if r.returncode != 0 or not path:
+    path = pick_path("选择 Manna 的保存位置", folder=True)
+    if not path:
         return {"ok": False, "download_dir": str(DOWNLOAD_DIR)}
-    DOWNLOAD_DIR = Path(path.rstrip("/") or "/")
+    DOWNLOAD_DIR = Path(path.rstrip("/") or "/") if not IS_WIN else Path(path)
     save_config(download_dir=str(DOWNLOAD_DIR))
     return {"ok": True, "download_dir": str(DOWNLOAD_DIR)}
 
 
 def import_douyin_cookies():
     """设置 → 抖音 → 导入 Cookie：选一个 cookies.txt，只保留抖音的行，存到 Manna 自己的目录。"""
-    import subprocess
-    r = subprocess.run(["osascript", "-e", 'POSIX path of (choose file with prompt '
-                        '"选择从浏览器导出的 cookies.txt（只会保存其中抖音的部分）")'],
-                       capture_output=True, text=True)
-    path = r.stdout.strip()
-    if r.returncode != 0 or not path:
+    path = pick_path("选择从浏览器导出的 cookies.txt（只会保存其中抖音的部分）", folder=False,
+                     file_types=("Cookie 文件 (*.txt)", "所有文件 (*.*)"))
+    if not path:
         return dict(douyin.cookie_status(), cancelled=True)
     res = douyin.import_cookies(path)
     return dict(douyin.cookie_status(), **res)
 
 
 def reveal(path):
-    """只允许在访达里显示 Manna 自己下载的文件。"""
+    """只允许在访达 / 资源管理器里显示 Manna 自己下载的文件。"""
     import subprocess
     with tasks_lock:
         known = {t.get("file") for t in tasks.values()}
     known |= history.known_files()
     if path not in known or not os.path.exists(path):
         raise RuntimeError("找不到这个文件，可能已被移动或删除。")
-    subprocess.Popen(["open", "-R", path])
+    if IS_WIN:
+        winsupport.reveal(path)
+    else:
+        subprocess.Popen(["open", "-R", path])
 
 
 def move_to_trash(path):
-    """把文件移到废纸篓（可以从废纸篓恢复），不直接删除。"""
-    if sys.platform == "darwin":
+    """把文件移到废纸篓 / 回收站（可以恢复），不直接删除。"""
+    if IS_WIN:
+        winsupport.move_to_trash(path)
+    elif sys.platform == "darwin":
         try:
             from Foundation import NSFileManager, NSURL
             ok, _, err = NSFileManager.defaultManager().trashItemAtURL_resultingItemURL_error_(
@@ -848,6 +898,7 @@ class Handler(BaseHTTPRequestHandler):
                             "tools": st,
                             "ffmpeg": bool(FFMPEG), "ffmpeg_path": FFMPEG,
                             "download_dir": str(DOWNLOAD_DIR),
+                            "app_version": VERSION, "platform": sys.platform,
                             "safari": safari_access(),
                             "douyin_cookies": douyin.cookie_status()})
         else:
@@ -907,7 +958,9 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json(import_douyin_cookies())
             elif self.path == "/api/douyin/import-browser":
                 browser = (req.get("browser") or "").strip()
-                res = douyin.import_from_browser("chrome" if browser in ("", "auto") else browser)
+                if browser in ("", "auto"):
+                    browser = (auto_browsers() or ["chrome"])[0] if IS_WIN else "chrome"
+                res = douyin.import_from_browser(browser)
                 self.send_json(dict(douyin.cookie_status(), **res))
             elif self.path == "/api/douyin/clear":
                 douyin.clear_cookies()
@@ -943,7 +996,9 @@ def safari_access():
 
 
 def open_fda_settings():
-    """打开「完全磁盘访问权限」设置页，并在访达里选中 Manna.app 方便拖进去。"""
+    """打开「完全磁盘访问权限」设置页，并在访达里选中 Manna.app 方便拖进去（只有 Mac 需要）。"""
+    if sys.platform != "darwin":
+        return
     import subprocess
     subprocess.Popen(["open", "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles"])
     if FROZEN:

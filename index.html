@@ -18,7 +18,7 @@
 }}
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--fg)}
-body{font:14px/1.5 -apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC",sans-serif;-webkit-font-smoothing:antialiased}
+body{font:14px/1.5 -apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Microsoft YaHei UI","Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
 main{max-width:720px;margin:0 auto;padding:40px 24px 48px}
 main>*{width:100%}
 button,input,select{font:inherit;color:inherit}
@@ -34,7 +34,7 @@ main{display:flex;flex-direction:column;min-height:100vh}
 /* 没有任务时，标题和链接框放在窗口正中 */
 body.idle .hero{padding-top:calc(50vh - 40px - 150px)}
 body.idle .section-head,body.idle #tasks{display:none}
-h1{font:600 30px/1.1 -apple-system,"SF Pro Display","PingFang SC",sans-serif;letter-spacing:-.02em;margin:0}
+h1{font:600 30px/1.1 -apple-system,"SF Pro Display","PingFang SC","Microsoft YaHei UI","Segoe UI",sans-serif;letter-spacing:-.02em;margin:0}
 .tagline{color:var(--muted);font-size:15px;margin-top:6px}
 .icon-btn{width:34px;height:34px;border-radius:50%;border:0;background:transparent;color:var(--muted);cursor:pointer;display:grid;place-items:center;transition:background .15s,color .15s}
 .icon-btn:hover{background:var(--surface-2);color:var(--fg)}
@@ -229,7 +229,7 @@ dialog::backdrop{background:rgba(0,0,0,.25);backdrop-filter:blur(2px)}
         </select>
       </div>
     </div>
-    <div class="group-note">需要登录的网站（抖音、小红书、B站高清等），Manna 会自动使用你在浏览器里的登录状态。用 Chrome 时会弹出「钥匙串」，输入电脑密码后点「始终允许」。</div>
+    <div class="group-note" id="loginNote">需要登录的网站（抖音、小红书、B站高清等），Manna 会自动使用你在浏览器里的登录状态。用 Chrome 时会弹出「钥匙串」，输入电脑密码后点「始终允许」。</div>
 
     <div class="group-title">保存位置</div>
     <div class="group">
@@ -257,7 +257,7 @@ dialog::backdrop{background:rgba(0,0,0,.25);backdrop-filter:blur(2px)}
         <button class="btn gray small" id="dyImport">导入 Cookie…</button>
       </div>
     </div>
-    <div class="group-note">先在浏览器里登录 douyin.com，再点「从浏览器读取」（用上面「登录浏览器」选的那个，「自动」时用 Chrome；Chrome 会弹出钥匙串，输入电脑密码后点「始终允许」）。也可以导出 cookies.txt 再导入。只保存抖音的部分，只在本机使用。</div>
+    <div class="group-note" id="dyNote">先在浏览器里登录 douyin.com，再点「从浏览器读取」（用上面「登录浏览器」选的那个，「自动」时用 Chrome；Chrome 会弹出钥匙串，输入电脑密码后点「始终允许」）。也可以导出 cookies.txt 再导入。只保存抖音的部分，只在本机使用。</div>
 
     <details class="adv">
       <summary>高级</summary>
@@ -327,6 +327,17 @@ dialog::backdrop{background:rgba(0,0,0,.25);backdrop-filter:blur(2px)}
 
 <script>
 const $ = id => document.getElementById(id);
+// Windows 版和 Mac 版用同一个页面，只换掉几处系统相关的说法
+const WIN = /Windows/.test(navigator.userAgent);
+const REVEAL = WIN ? "在资源管理器中显示" : "在访达中显示";
+const TRASH = WIN ? "回收站" : "废纸篓";
+if (WIN) {
+  document.querySelector('#cookies_browser option[value="safari"]').remove();
+  $("loginNote").textContent = "需要登录的网站（抖音、小红书、B站高清等），Manna 会自动使用你在浏览器里的登录状态。"
+    + "Windows 上建议用 Firefox 登录：Chrome / Edge 的登录信息通常读不出来，可以改用浏览器扩展导出的 cookies.txt。";
+  $("dyNote").textContent = "先在浏览器里登录 douyin.com，再点「从浏览器读取」（用上面「登录浏览器」选的那个，「自动」时用本机第一个找到的 Firefox / Edge / Chrome；"
+    + "Windows 上 Chrome / Edge 通常读不出来，建议用 Firefox）。也可以导出 cookies.txt 再导入。只保存抖音的部分，只在本机使用。";
+}
 const SETTINGS = ["cookies_browser", "cookies_file", "proxy"];
 SETTINGS.forEach(k => {
   try {
@@ -395,7 +406,7 @@ api("/api/status").then(s => {
   showPerm(s.safari);
   $("folder").textContent = home(s.download_dir);
   $("folder").title = s.download_dir;
-  $("version").textContent = `yt-dlp ${s.version} · ffmpeg ${s.ffmpeg ? "正常" : "未找到"} · 自动保持最新`;
+  $("version").textContent = `Manna ${s.app_version || ""} · yt-dlp ${s.version} · ffmpeg ${s.ffmpeg ? "正常" : "未找到"} · 自动保持最新`;
 }).catch(() => {});
 function showDyCookie(c) {
   if (!c) return;
@@ -510,7 +521,7 @@ async function refresh() {
         ? [QUALITY(t.quality), t.size, t.speed].filter(Boolean).join(" · ")
         : t.status === "done" && t.summary ? t.summary
         : t.status === "done" && t.file ? (t.files && t.files.length > 1 ? `${t.files.length} 个文件` : t.file.split("/").pop()) : QUALITY(t.quality);
-      const act = (t.status === "done" && t.file ? `<button class="round" data-reveal="${esc(t.file)}" title="在访达中显示" aria-label="在访达中显示">${ICON.reveal}</button>` : "")
+      const act = (t.status === "done" && t.file ? `<button class="round" data-reveal="${esc(t.file)}" title="${REVEAL}" aria-label="${REVEAL}">${ICON.reveal}</button>` : "")
         + (t.status === "error" || t.warning ? `<button class="round" data-retry="${esc(t.id)}" title="重试" aria-label="重试">${ICON.retry}</button>` : "")
         + (t.status === "done" || t.status === "error" ? `<button class="round del" data-del="${esc(t.id)}" data-has-file="${t.file ? 1 : ""}" title="删除" aria-label="删除">${ICON.trash}</button>` : "");
       return `<div class="task ${t.status}${t.warning ? " warned" : ""}">
@@ -541,7 +552,7 @@ $("tasks").addEventListener("click", async e => {
     if (b.dataset.reveal) await api("/api/reveal", {path: b.dataset.reveal});
     if (b.dataset.retry) { await api("/api/retry", {id: b.dataset.retry}); refresh(); }
     if (b.dataset.del) {
-      if (b.dataset.hasFile && !confirm("删除这条下载？\n下载好的文件会移到废纸篓，需要时可以从废纸篓恢复。")) return;
+      if (b.dataset.hasFile && !confirm(`删除这条下载？\n下载好的文件会移到${TRASH}，需要时可以从${TRASH}恢复。`)) return;
       await api("/api/delete", {id: b.dataset.del}); refresh();
     }
   } catch (err) { alert(err.message); }
@@ -565,7 +576,7 @@ async function loadHistory() {
         <div class="meta">${esc(meta)}${h.exists ? "" : ` · <span class="gone-tag">文件已不存在</span>`}</div>
       </div>
       <div class="act">
-        <button class="round" data-reveal="${esc(h.file)}" ${h.exists ? "" : "disabled"} title="${h.exists ? "在访达中显示" : "文件已不存在"}" aria-label="在访达中显示">${ICON.reveal}</button>
+        <button class="round" data-reveal="${esc(h.file)}" ${h.exists ? "" : "disabled"} title="${h.exists ? REVEAL : "文件已不存在"}" aria-label="${REVEAL}">${ICON.reveal}</button>
         <button class="round del" data-hdel="${esc(h.id)}" data-exists="${h.exists ? 1 : ""}" title="删除" aria-label="删除">${ICON.trash}</button>
       </div>
     </div>`;
@@ -577,7 +588,7 @@ $("histList").addEventListener("click", async e => {
   try {
     if (b.dataset.reveal) await api("/api/reveal", {path: b.dataset.reveal});
     if (b.dataset.hdel) {
-      const msg = b.dataset.exists ? "删除这条下载记录？\n文件会移到废纸篓，需要时可以从废纸篓恢复。" : "文件已经不在了，删除这条记录？";
+      const msg = b.dataset.exists ? `删除这条下载记录？\n文件会移到${TRASH}，需要时可以从${TRASH}恢复。` : "文件已经不在了，删除这条记录？";
       if (!confirm(msg)) return;
       await api("/api/history/delete", {id: b.dataset.hdel});
       loadHistory(); refresh();

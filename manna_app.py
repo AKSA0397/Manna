@@ -3,6 +3,8 @@ import sys
 
 
 def main():
+    import winsupport
+    winsupport.hide_console_windows()
     import webview
 
     import app

@@ -12,6 +12,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import time
 import urllib.error
@@ -32,6 +33,8 @@ MOBILE_UA = ("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit
 REFERER = "https://www.douyin.com/"
 # 设置里「导入 Cookie」保存的位置（只保留抖音域名的行，权限 600）
 COOKIE_FILE = SUPPORT_DIR / "cookies" / "douyin.txt"
+WIN_COOKIE_HINT = ("Windows 上 Chrome / Edge 的登录信息通常读不出来（新的加密方式，浏览器开着时还会锁住文件）："
+                   "请在 Firefox 里登录 douyin.com 后把「登录浏览器」选成 Firefox 再点一次，或导出 cookies.txt 再导入。")
 COOKIE_EXPIRED = "请在浏览器登录抖音后重新导出 Cookie（设置 → 抖音 → 导入 Cookie）。"
 ID_RE = re.compile(r"/(video|note|slides)/(\d{8,})")
 
@@ -101,7 +104,8 @@ def import_from_browser(browser):
         raise EngineError(f"{browser} 里没有抖音的登录信息：请先在 {browser} 里打开 douyin.com 并登录，再点一次。")
     except Exception as e:
         raise EngineError(f"读不到 {browser} 的登录信息（{str(e).splitlines()[0][:120]}）。"
-                          "用 Chrome 时请在弹出的「钥匙串」里输入电脑密码并点「始终允许」；用 Safari 需要给 Manna「完全磁盘访问权限」。")
+                          + (WIN_COOKIE_HINT if sys.platform == "win32" else
+                             "用 Chrome 时请在弹出的「钥匙串」里输入电脑密码并点「始终允许」；用 Safari 需要给 Manna「完全磁盘访问权限」。"))
 
 
 def clear_cookies():

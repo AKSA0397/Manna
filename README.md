@@ -60,7 +60,11 @@ yt-dlp 每天自动检查一次更新，也可以在设置里手动更新。
 
 ## 安装
 
-目前需要自己打包，在终端运行：
+**Windows**：在 [Releases](https://github.com/AKSA0397/Manna/releases) 下载 `Manna-Setup-版本号.exe` 安装（装到当前用户目录，不需要管理员权限）；也可以下载 `Manna-版本号-Windows-portable.zip`，解压后直接运行 `Manna.exe`。安装包没有代码签名，第一次打开如果提示「Windows 已保护你的电脑」，点「更多信息」→「仍要运行」。窗口用系统的 WebView2 显示（Windows 11 自带，少数 Windows 10 需要从微软官网安装，安装包会提示）。
+
+Windows 版和 Mac 版界面相同。转 H.264 依次尝试 NVIDIA / Intel / AMD 显卡硬件编码，都不可用时用 libx264；设置和日志在 `%APPDATA%\Manna`。Chrome / Edge 在 Windows 上的登录信息通常读不出来，建议用 Firefox 登录，或导出 cookies.txt。Windows 安装包由 GitHub Actions 自动打包（`.github/workflows/windows.yml`），也可以在 Windows 上运行 `build_windows.ps1` 自己打包。
+
+**Mac**：在 Releases 下载 .dmg（Apple 芯片选 AppleSilicon，Intel 芯片选 Intel）；或自己打包，在终端运行：
 
 ```bash
 ./build_mac.command
@@ -147,16 +151,16 @@ Manna 自身的代码以 [MIT 许可](LICENSE) 发布。
 
 ## English
 
-**Manna** is a quiet video downloader for macOS, built on [yt-dlp](https://github.com/yt-dlp/yt-dlp).
+**Manna** is a quiet video downloader for macOS and Windows, built on [yt-dlp](https://github.com/yt-dlp/yt-dlp).
 Paste a link, pick a quality, and get an H.264 + AAC mp4 that opens in any editor.
 
 - Works with YouTube, Bilibili, TikTok, X, Instagram, Pinterest, Xiaohongshu and the many other sites yt-dlp supports.
 - Lists every available resolution with codec and estimated size; "best quality" and audio-only (MP3) are one click away.
-- VP9 / AV1 sources are transcoded to H.264 with VideoToolbox hardware encoding, at a bitrate matched to the source.
+- VP9 / AV1 sources are transcoded to H.264 with hardware encoding (VideoToolbox on Mac; NVIDIA / Intel / AMD on Windows, falling back to libx264), at a bitrate matched to the source.
 - Each download is checked (duration + first 5 seconds decoded), and kept in a history with thumbnails.
-- Uses your own browser sign-in or a cookies.txt file; cookies never leave your Mac.
+- Uses your own browser sign-in or a cookies.txt file; cookies never leave your computer.
 
-Build with `./build_mac.command` (Python 3.10+ required at build time only).
+Download the Windows installer or the Mac .dmg from [Releases](https://github.com/AKSA0397/Manna/releases), or build with `./build_mac.command` (Mac) / `build_windows.ps1` (Windows).
 Manna uses only publicly served files and your own sign-in. It does not remove watermarks or bypass DRM, paywalls or platform access controls. Download only content you have the right to keep.
 
 Screenshots show Blender Foundation open movies (CC BY, © Blender Foundation | blender.org).

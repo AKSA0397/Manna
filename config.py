@@ -2,12 +2,17 @@
 import json
 import logging
 import logging.handlers
+import os
 import sys
 from pathlib import Path
 
+VERSION = "1.1.0"
 FROZEN = getattr(sys, "frozen", False)
 if sys.platform == "darwin":
     SUPPORT_DIR = Path.home() / "Library" / "Application Support" / "Manna"
+elif sys.platform == "win32":
+    # C:\Users\<用户名>\AppData\Roaming\Manna
+    SUPPORT_DIR = Path(os.environ.get("APPDATA") or Path.home() / "AppData" / "Roaming") / "Manna"
 else:
     SUPPORT_DIR = Path.home() / ".manna"
 BASE_DIR = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
@@ -32,7 +37,7 @@ def save_config(**kw):
 
 
 def get_logger():
-    """写到 ~/Library/Application Support/Manna/manna.log（最多 1MB × 3 份）。"""
+    """写到应用数据目录里的 manna.log（Mac：~/Library/Application Support/Manna，Windows：%APPDATA%\\Manna；最多 1MB × 3 份）。"""
     log = logging.getLogger("manna")
     if not log.handlers:
         log.setLevel(logging.INFO)

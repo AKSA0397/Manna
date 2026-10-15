@@ -9,6 +9,9 @@ import sys
 
 
 def main(argv):
+    import winsupport
+    winsupport.fix_std_streams()      # Windows 窗口程序没有 stdout，接回父进程给的管道
+    winsupport.hide_console_windows()  # yt-dlp 再启动 ffmpeg / deno 时不弹黑框
     for s in (sys.stdout, sys.stderr):
         try:
             s.reconfigure(encoding="utf-8", errors="replace")
