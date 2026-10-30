@@ -147,6 +147,7 @@ for ARCH in $ARCHES; do
   hdiutil create -quiet -volname "Manna" -srcfolder "$STAGE" -fs HFS+ -format UDRW -ov "$RW"
   MNT="$(hdiutil attach -readwrite -noverify -noautoopen "$RW" | awk -F'\t' '/\/Volumes\//{print $NF}')"
   # 整理窗口布局（需要允许「终端」控制「访达」；不允许也不影响安装，只是图标位置是默认的）
+  if [ "${CI:-}" != "true" ]; then
   osascript >/dev/null 2>&1 <<EOF || echo "（跳过窗口布局）"
 tell application "Finder"
   tell disk (do shell script "basename " & quoted form of "$MNT")
@@ -167,6 +168,7 @@ tell application "Finder"
   end tell
 end tell
 EOF
+  fi
   sync
   hdiutil detach -quiet "$MNT" || hdiutil detach -force -quiet "$MNT"
   hdiutil convert -quiet "$RW" -format UDZO -imagekey zlib-level=9 -ov -o "$DMG"

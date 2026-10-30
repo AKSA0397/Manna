@@ -24,6 +24,7 @@ if FROZEN and YTDLP_ZIP.exists():
     sys.path.insert(0, str(YTDLP_ZIP))
 
 import history
+import app_updates
 import shortlinks
 from subtitles import download_subtitles
 import tools
@@ -877,6 +878,8 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
+        elif self.path == "/api/app-update":
+            self.send_json(app_updates.check_update())
         elif self.path == "/api/tasks":
             with tasks_lock:
                 self.send_json(list(tasks.values()))
@@ -921,7 +924,11 @@ class Handler(BaseHTTPRequestHandler):
         except json.JSONDecodeError:
             return self.send_json({"error": "bad json"}, 400)
         try:
-            if self.path == "/api/info":
+            if self.path == "/api/app-update/check":
+                self.send_json(app_updates.check_update(force=True))
+            elif self.path == "/api/app-update/open":
+                self.send_json(app_updates.open_update())
+            elif self.path == "/api/info":
                 self.send_json(get_info(req))
             elif self.path == "/api/download":
                 self.send_json({"id": queue_download(req)})

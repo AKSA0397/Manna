@@ -200,6 +200,7 @@ dialog::backdrop{background:rgba(0,0,0,.25);backdrop-filter:blur(2px)}
     </div>
   </div>
 
+  <button class="btn gray small hidden" id="appUpdateBanner"></button>
   <div class="card hidden" id="result"></div>
 
   <div class="section-head">
@@ -269,6 +270,14 @@ dialog::backdrop{background:rgba(0,0,0,.25);backdrop-filter:blur(2px)}
       </div>
     </details>
 
+    <div class="group-title">软件更新</div>
+    <div class="group"><div class="field">
+      <span class="folder" id="appUpdateStatus">检查软件更新…</span>
+      <button class="btn gray small" id="checkAppUpdate">检查更新</button>
+      <button class="btn gray small hidden" id="downloadAppUpdate">下载更新</button>
+    </div></div>
+    <div class="group-note">下载后安装新版即可更新 Manna；下载引擎独立更新。</div>
+    <details id="appReleaseNotes" class="hidden"><summary>更新说明</summary><pre id="appReleaseText" style="white-space:pre-wrap;overflow-wrap:anywhere"></pre></details>
     <div class="group-title">关于</div>
     <div class="group">
       <button class="link-row" id="openAbout">关于 / 开源许可<span>›</span></button>
@@ -397,6 +406,32 @@ $("permSkip").onclick = () => {
 };
 $("cookies_browser").addEventListener("change", checkPerm);
 
+function showAppUpdate(r) {
+  $("appUpdateStatus").textContent = `当前 ${r.current} · ${r.note}`;
+  $("downloadAppUpdate").classList.toggle("hidden", r.status === "ok" && !r.available);
+  $("downloadAppUpdate").textContent = r.available ? "下载更新" : "查看发布页";
+  $("appReleaseNotes").classList.toggle("hidden", !r.available || !r.notes);
+  $("appReleaseText").textContent = r.notes || "";
+  if (r.available) {
+    $("openSettings").title = `发现 Manna ${r.latest}，请到设置下载更新`;
+    $("version").textContent = `Manna ${r.current} · 发现新版 ${r.latest}`;
+    $("appUpdateBanner").textContent = `Manna ${r.latest} 已发布，点击查看更新`;
+    $("appUpdateBanner").classList.remove("hidden");
+  } else $("appUpdateBanner").classList.add("hidden");
+}
+$("checkAppUpdate").onclick = async () => {
+  $("checkAppUpdate").disabled = true;
+  $("appUpdateStatus").textContent = "正在检查…";
+  try { showAppUpdate(await api("/api/app-update/check", {})); }
+  catch (e) { $("appUpdateStatus").textContent = "检查失败，请重试"; }
+  finally { $("checkAppUpdate").disabled = false; }
+};
+$("downloadAppUpdate").onclick = async () => {
+  try { const r = await api("/api/app-update/open", {}); if (!r.ok) alert("无法打开浏览器，请手动访问 GitHub 项目发布页。"); }
+  catch (e) { alert(e.message); }
+};
+$("appUpdateBanner").onclick = () => $("settings").showModal();
+api("/api/app-update").then(showAppUpdate).catch(() => { $("appUpdateStatus").textContent = "检查失败，可点击重试"; });
 const home = p => {
   const parts = String(p || "").replace(/^\/Users\/[^/]+/, "~").split("/").filter(Boolean);
   const lead = parts[0] === "~" ? "" : "/";
@@ -406,7 +441,7 @@ api("/api/status").then(s => {
   showPerm(s.safari);
   $("folder").textContent = home(s.download_dir);
   $("folder").title = s.download_dir;
-  $("version").textContent = `Manna ${s.app_version || ""} · yt-dlp ${s.version} · ffmpeg ${s.ffmpeg ? "正常" : "未找到"} · 自动保持最新`;
+  $("version").textContent = `Manna ${s.app_version || ""} · yt-dlp ${s.version} · ffmpeg ${s.ffmpeg ? "正常" : "未找到"} · 下载引擎自动更新`;
 }).catch(() => {});
 function showDyCookie(c) {
   if (!c) return;

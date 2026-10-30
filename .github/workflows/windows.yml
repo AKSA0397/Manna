@@ -1,6 +1,6 @@
 # 打包 Windows 版 Manna：推送 v 开头的标签（如 v1.1.0）时打包并上传到同名 Release；
 # 也可以在 Actions 页面手动运行（只打包，安装包在本次运行的 Artifacts 里）。
-name: Windows 安装包
+name: Manna 安装包与发布
 
 on:
   push:
@@ -25,6 +25,12 @@ jobs:
       - name: 打包
         shell: pwsh
         run: ./build_windows.ps1
+
+      - name: 更新与字幕测试
+        shell: pwsh
+        run: |
+          & .build\win\python\python.exe -B -m unittest test_subtitles test_app_updates
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
 
       - name: 功能检查（转 H.264、回收站、剪贴板、外部工具）
         shell: pwsh
@@ -60,16 +66,61 @@ jobs:
             dist/Manna-Setup-*.exe
             dist/Manna-*-Windows-portable.zip
 
-      - name: 发布到 Release
-        if: startsWith(github.ref, 'refs/tags/')
-        shell: pwsh
+  mac:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            arch: arm64
+          - runner: macos-15-intel
+            arch: x86_64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: 测试
+        run: python3 -B -m unittest test_subtitles test_app_updates
+      - name: 打包
+        env:
+          ARCHES: ${{ matrix.arch }}
+          NO_OPEN: '1'
+          CI: 'true'
+        run: bash build_mac.command
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Manna-Mac-${{ matrix.arch }}
+          path: dist/*.dmg
+          if-no-files-found: error
+
+  release:
+    needs: [build, mac]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: 校验版本标签
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          python3 - <<'PY'
+          import os
+          from config import VERSION
+          assert os.environ['RELEASE_TAG'] == 'v' + VERSION, '版本标签与 config.py 不一致'
+          PY
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: Manna-*
+          path: release-assets
+          merge-multiple: true
+      - name: 发布安装包
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          $tag = "${{ github.ref_name }}"
-          gh release view $tag 2>$null
-          if ($LASTEXITCODE) {
-            gh release create $tag --title "Manna $($tag.TrimStart('v'))" --notes "Windows 版：下载 Manna-Setup-*.exe 安装（不需要管理员权限）；免安装版是 *-Windows-portable.zip，解压后运行 Manna.exe。"
-          }
-          $files = Get-ChildItem dist\Manna-Setup-*.exe, dist\Manna-*-Windows-portable.zip | ForEach-Object FullName
-          gh release upload $tag @files --clobber
+          cd release-assets
+          sha256sum * > SHA256SUMS
+          cd ..
+          gh release view "$RELEASE_TAG" || gh release create "$RELEASE_TAG" --draft --title "Manna $RELEASE_TAG" --notes-file RELEASE_NOTES.md
+          gh release upload "$RELEASE_TAG" release-assets/* --clobber
+          gh release edit "$RELEASE_TAG" --draft=false --latest
