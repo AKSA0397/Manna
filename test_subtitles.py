@@ -23,7 +23,7 @@ class SubtitleTests(unittest.TestCase):
                 files, warning = download_subtitles('https://example.com', {'download_subtitles': True, 'subtitle_markdown': True}, str(Path(d)/'video.mp4'), lambda _: None)
                 self.assertEqual(warning, '')
                 self.assertEqual(len(files), 2)
-                self.assertIn('Hello', Path(files[1]).read_text())
+                self.assertIn('Hello', Path(files[1]).read_text(encoding='utf-8'))
                 self.assertIn('--skip-download', run.call_args[0][0])
 
     def test_missing_and_failure(self):
