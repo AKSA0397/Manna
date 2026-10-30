@@ -6,7 +6,7 @@ import os
 import sys
 from pathlib import Path
 
-VERSION = "1.2.0"
+VERSION = "1.2.1"
 FROZEN = getattr(sys, "frozen", False)
 if sys.platform == "darwin":
     SUPPORT_DIR = Path.home() / "Library" / "Application Support" / "Manna"

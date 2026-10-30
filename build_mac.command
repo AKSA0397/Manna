@@ -132,7 +132,7 @@ for ARCH in $ARCHES; do
   if security find-certificate -c "$SIGN_ID" >/dev/null 2>&1; then
     codesign --force --deep --sign "$SIGN_ID" "$APP"
   else
-    echo "没有找到证书「$SIGN_ID」，改用临时签名"
+    echo "没有找到证书「${SIGN_ID}」，改用临时签名"
     codesign --force --deep --sign - "$APP"
   fi
   codesign --verify --deep --strict "$APP"
