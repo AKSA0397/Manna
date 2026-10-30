@@ -25,6 +25,7 @@ if FROZEN and YTDLP_ZIP.exists():
 
 import history
 import shortlinks
+from subtitles import download_subtitles
 import tools
 from engines import Selection, browser_cookie_header, registry
 from engines import douyin
@@ -316,6 +317,7 @@ def run_download(task_id, req):
             path = tag_with_resolution(path, best=quality == "best")
         expected = req.get("duration") or result.duration
         problem = verify_media(task_id, path, float(expected) if expected else None, audio=quality == "audio")
+        subtitle_files, subtitle_warning = download_subtitles(url, req, path, hook)
         warning = ""
         if douyin.is_douyin(url):
             # 分享页 / yt-dlp 拿到的是抖音公开播放的文件：画质较低，带抖音水印
@@ -323,10 +325,11 @@ def run_download(task_id, req):
         if problem:
             warning = f"可能花屏/不完整：{problem}。" + warning
             warning += "可以点「重试」重新下载。"
+        warning = " ".join(filter(None, [warning, subtitle_warning]))
         with tasks_lock:
             notify("下载完成" + ("（可能不完整）" if warning else ""), tasks[task_id].get("title"))
             tasks[task_id].update(status="done", percent=100, file=str(path), warning=warning, engine=used)
-        record_history(task_id, req, [str(path)], quality)
+        record_history(task_id, req, [str(path)] + subtitle_files, quality)
     except Exception as e:
         with tasks_lock:
             tasks[task_id].update(status="error", error=friendly_error(str(e)))

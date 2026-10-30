@@ -166,3 +166,7 @@ Manna uses only publicly served files and your own sign-in. It does not remove w
 Screenshots show Blender Foundation open movies (CC BY, © Blender Foundation | blender.org).
 
 Released under the [MIT License](LICENSE).
+
+### 字幕与逐字稿
+
+解析单个视频后，可勾选「下载字幕」，下载网站提供的中文、英文人工及自动字幕；同语言人工字幕优先。勾选「自动生成 Markdown 逐字稿」会在视频目录保存同名 `.md` 文件，同时保留原字幕。逐字稿清理时间码和标签，并去除相邻滚动字幕的重复行，不进行 AI 改写或音频识别。没有可用字幕或字幕下载失败时会提示，视频仍保留。暂不支持图集、主页批量及栏目批量的字幕处理。

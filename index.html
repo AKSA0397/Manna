@@ -466,6 +466,8 @@ async function parse() {
         <div class="choose">
           <select id="quality"${info.images ? ' class="hidden"' : ""}>${opts}</select>
           <button class="btn" id="download">下载</button>
+          ${!info.images && !info.batch && !info.fallback ? `<label><input type="checkbox" id="download-subtitles"> 下载字幕（中/英文，含自动字幕）</label>
+          <label><input type="checkbox" id="subtitle-markdown" checked> 自动生成 Markdown 逐字稿</label>` : ""}
         </div>
         ${info.images > 0 ? `<div class="meta" style="margin-top:8px">图集，共 ${info.images} 张图片，将全部下载。</div>`
           : info.images ? `<div class="meta" style="margin-top:8px">图集，将下载全部图片。</div>`
@@ -483,7 +485,7 @@ async function download() {
   try { localStorage.setItem("dl_quality", q); } catch (e) {}
   const s = settings();
   if (s.cookies_browser === "auto") s.cookies_browser = current.cookies_used;
-  await api("/api/download", {...current, ...s, quality: q});
+  await api("/api/download", {...current, ...s, quality: q, download_subtitles: !!$("download-subtitles")?.checked, subtitle_markdown: !!$("subtitle-markdown")?.checked});
   $("result").classList.add("hidden");
   $("url").value = "";
   refresh();
